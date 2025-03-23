@@ -1,0 +1,33 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --color-black: #000000;
+  --color-light-gray: #D9D9D9;
+  --color-beige: #EFD7BB;
+  --color-teal: #BBC6B4;
+  --color-olive: #7C8D6B;
+}
+
+html, body {
+  font-family: 'Inter', 'Ubuntu', sans-serif;
+  height: 100%;
+  background-color: #ffffff;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+main {
+  flex: 1;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Ubuntu', 'Inter', sans-serif;
+}

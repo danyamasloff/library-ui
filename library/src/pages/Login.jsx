@@ -1,0 +1,39 @@
+import { useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
+import { Box, Container, Typography } from '@mui/material';
+import LoginForm from '../components/auth/LoginForm';
+import { ROUTES } from '../utils/constants';
+
+const Login = () => {
+    const navigate = useNavigate();
+    const { isAuthenticated } = useSelector((state) => state.auth);
+
+    // Перенаправляем на дашборд, если пользователь уже авторизован
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate(ROUTES.DASHBOARD);
+        }
+    }, [isAuthenticated, navigate]);
+
+    return (
+        <Container maxWidth="md">
+            <Box sx={{ py: 4 }}>
+                <Typography
+                    variant="h4"
+                    component="h1"
+                    textAlign="center"
+                    gutterBottom
+                    fontFamily="Ubuntu"
+                    fontWeight={700}
+                    color="primary.main"
+                >
+                    Библиотека ИУЦТ ЦТУТП
+                </Typography>
+                <LoginForm />
+            </Box>
+        </Container>
+    );
+};
+
+export default Login;
