@@ -17,6 +17,20 @@ const initialState = {
     message: null,
 };
 
+// Проверка токена
+export const checkAuth = createAsyncThunk(
+    'auth/checkAuth',
+    async (_, { rejectWithValue }) => {
+        try {
+            return await authService.checkAuthStatus();
+        } catch (error) {
+            return rejectWithValue(
+                error.message || 'Ошибка при проверке авторизации'
+            );
+        }
+    }
+);
+
 // Регистрация пользователя
 export const register = createAsyncThunk(
     'auth/register',
@@ -25,7 +39,8 @@ export const register = createAsyncThunk(
             return await authService.register(userData);
         } catch (error) {
             return rejectWithValue(
-                error.response?.data?.message || error.message || 'Ошибка при регистрации'
+                typeof error === 'string' ? error :
+                    (error.message || 'Ошибка при регистрации')
             );
         }
     }
@@ -39,7 +54,8 @@ export const login = createAsyncThunk(
             return await authService.login(userData);
         } catch (error) {
             return rejectWithValue(
-                error.response?.data?.message || error.message || 'Неверные учетные данные'
+                typeof error === 'string' ? error :
+                    (error.message || 'Неверные учетные данные')
             );
         }
     }
@@ -53,7 +69,8 @@ export const getVerificationCode = createAsyncThunk(
             return await authService.getVerificationCode(email);
         } catch (error) {
             return rejectWithValue(
-                error.response?.data?.message || error.message || 'Ошибка при отправке кода подтверждения'
+                typeof error === 'string' ? error :
+                    (error.message || 'Ошибка при отправке кода подтверждения')
             );
         }
     }
@@ -67,7 +84,8 @@ export const getUserProfile = createAsyncThunk(
             return await authService.getUserProfile(userId);
         } catch (error) {
             return rejectWithValue(
-                error.response?.data?.message || error.message || 'Ошибка при получении данных пользователя'
+                typeof error === 'string' ? error :
+                    (error.message || 'Ошибка при получении данных пользователя')
             );
         }
     }
@@ -104,6 +122,24 @@ const authSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
+            // CheckAuth
+            .addCase(checkAuth.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(checkAuth.fulfilled, (state, action) => {
+                state.loading = false;
+                state.isAuthenticated = action.payload.isAuthenticated;
+                if (action.payload.user) {
+                    state.user = action.payload.user;
+                }
+            })
+            .addCase(checkAuth.rejected, (state, action) => {
+                state.loading = false;
+                state.isAuthenticated = false;
+                state.error = action.payload;
+            })
+
             // Register
             .addCase(register.pending, (state) => {
                 state.loading = true;
