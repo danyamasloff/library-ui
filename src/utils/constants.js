@@ -1,5 +1,7 @@
 // API URLs
-export const API_URL = 'http://localhost:8080';
+export const API_URL = process.env.NODE_ENV === 'production'
+    ? 'https://your-production-api.com'
+    : 'http://localhost:8080';
 
 // API Endpoints
 export const API_ENDPOINTS = {
@@ -9,6 +11,7 @@ export const API_ENDPOINTS = {
         REGISTER: '/auth/register',
         GET_CODE: '/auth/code/get',
         CHECK_EMAIL: '/auth/check-email-availability',
+        CHECK_AUTH: '/auth/check-auth', // Эндпоинт для проверки токена
     },
     // Пользователи
     USERS: {
@@ -19,6 +22,20 @@ export const API_ENDPOINTS = {
     BOOKS: {
         GET_ALL: '/books/',
         GET_BY_ID: (id) => `/books/${id}`,
+        SEARCH: {
+            REQUEST: '/books/search/request',
+            NAME: '/books/search/name',
+            GENRE: '/books/search/genre',
+            BOOK_ID: '/books/search/book-identifier',
+            AUTHOR_NAME: '/books/search/author-name',
+            AUTHOR_ID: '/books/search/author-identifier',
+        }
+    },
+    // Бронирования книг
+    BORROWS: {
+        USER: '/borrows/u/',
+        TEACHER: '/borrows/t/',
+        LIBRARIAN: '/borrows/l/',
     },
 };
 
@@ -30,6 +47,7 @@ export const ROUTES = {
     DASHBOARD: '/dashboard',
     PROFILE: '/profile',
     CATALOG: '/catalog',
+    BOOK_DETAILS: (id) => `/books/${id}`,
 };
 
 // Form validation messages
@@ -46,4 +64,20 @@ export const VALIDATION_MESSAGES = {
 export const STORAGE_KEYS = {
     TOKEN: 'token',
     USER: 'user',
+};
+
+// Типы ошибок API
+export const API_ERROR_TYPES = {
+    NETWORK: 'network_error',
+    AUTH: 'auth_error',
+    VALIDATION: 'validation_error',
+    SERVER: 'server_error',
+};
+
+// Статусы книг
+export const BOOK_STATUSES = {
+    IN_STOCK: 'В наличии',
+    ISSUED: 'Выдана',
+    NOT_AVAILABLE: 'Нет в наличии',
+    BOOKED: 'Забронирована',
 };
