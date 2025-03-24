@@ -1,46 +1,32 @@
-import axios from 'axios';
+import api from '../../utils/api';
 import { API_URL, API_ENDPOINTS, STORAGE_KEYS } from '../../utils/constants';
 
-// Create axios instance with base URL
-const api = axios.create({
-    baseURL: API_URL,
-    headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json, text/plain, */*'
-    },
-    timeout: 10000
-});
+// Хелперы для логирования
+const logInfo = (message) => console.log(`[Auth] ${message}`);
+const logError = (message, error) => console.error(`[Auth] ${message}`, error);
 
-// Add token to requests if it exists
-api.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-        return config;
-    },
-    (error) => Promise.reject(error)
-);
-
-// Register user
+// Регистрация пользователя
 const register = async (userData) => {
     try {
-        console.log('Отправляем запрос на регистрацию:', {
-            ...userData,
-            password: '***скрыто***'
-        });
+        logInfo(`Отправляем запрос на регистрацию: ${userData.email}`);
 
         // Проверка доступности email
-        const checkEmailResponse = await api.get(API_ENDPOINTS.AUTH.CHECK_EMAIL, {
-            params: { email: userData.email }
-        });
+        try {
+            const checkEmailResponse = await api.get(API_ENDPOINTS.AUTH.CHECK_EMAIL, {
+                params: { email: userData.email }
+            });
 
-        if (!checkEmailResponse.data.available) {
-            throw new Error('Пользователь с таким email уже существует');
+            if (checkEmailResponse.data && !checkEmailResponse.data.available) {
+                throw new Error('Пользователь с таким email уже существует');
+            }
+        } catch (emailCheckError) {
+            // Если сервер не поддерживает проверку email, продолжаем с регистрацией
+            if (emailCheckError.response && emailCheckError.response.status !== 404) {
+                throw emailCheckError;
+            }
         }
 
-        // Отправка запроса на регистрацию с Query Parameters
+        // Отправка запроса на регистрацию
         const response = await api.post(API_ENDPOINTS.AUTH.REGISTER, null, {
             params: {
                 firstName: userData.firstName,
@@ -52,7 +38,7 @@ const register = async (userData) => {
             },
         });
 
-        console.log('Ответ сервера на регистрацию:', response.data);
+        logInfo(`Ответ сервера на регистрацию: ${JSON.stringify(response.data)}`);
 
         return {
             success: true,
@@ -61,21 +47,35 @@ const register = async (userData) => {
             ...response.data
         };
     } catch (error) {
-        console.error('Ошибка при регистрации:', error);
-        throw error.response?.data || error.message || 'Ошибка при регистрации';
+        logError('Ошибка при регистрации:', error);
+
+        // Обработка разных типов ошибок
+        if (error.response) {
+            // Есть ответ от сервера с ошибкой
+            const data = error.response.data;
+
+            if (typeof data === 'string') {
+                throw new Error(data);
+            } else if (data && data.message) {
+                throw new Error(data.message);
+            } else if (error.response.status === 409) {
+                throw new Error('Пользователь с таким email уже существует');
+            } else {
+                throw new Error(`Ошибка при регистрации: ${error.response.status}`);
+            }
+        }
+
+        // Нет ответа от сервера (сетевая ошибка)
+        throw new Error(error.message || 'Ошибка при регистрации. Проверьте подключение к интернету.');
     }
 };
 
-// Login user
+// Login
 const login = async (userData) => {
     try {
-        console.log('Отправляем запрос на вход:', {
-            email: userData.email,
-            entryCode: userData.entryCode,
-            password: '***скрыто***'
-        });
+        logInfo(`Отправляем запрос на вход: ${userData.email}`);
 
-        // Отправляем запрос с параметрами в query string, а не в теле запроса
+        // Отправляем запрос с параметрами в query string
         const response = await api.post(API_ENDPOINTS.AUTH.LOGIN, null, {
             params: {
                 email: userData.email,
@@ -84,116 +84,140 @@ const login = async (userData) => {
             },
         });
 
-        console.log('Ответ сервера на вход:', response);
+        logInfo(`Успешный вход: статус ${response.status}`);
+        console.log('Полный ответ от сервера:', response);
 
-        // Если ответ пустой или содержит сообщение об ошибке
-        if (response.status === 204 || (response.data && typeof response.data === 'string' && response.data.includes('not found'))) {
+        // Проверяем корректность ответа
+        if (response.status === 204 ||
+            (response.data && typeof response.data === 'string' && response.data.includes('not found'))) {
             throw new Error('Пользователь не найден или неверные учетные данные');
         }
 
-        // Если статус 200 или 202, обрабатываем ответ
-        if (response.status === 200 || response.status === 202) {
-            // Если данные есть в ответе
-            if (response.data) {
-                let token = null;
-                let user = null;
+        // Обрабатываем успешный ответ
+        let token = null;
+        let user = null;
 
-                // Определяем формат ответа
-                if (typeof response.data === 'object') {
-                    // Находим токен в ответе
-                    if (response.data.token) {
-                        token = response.data.token;
-                        user = response.data.user || response.data;
-                    } else if (response.data.data && response.data.data.token) {
-                        token = response.data.data.token;
-                        user = response.data.data.user || response.data.data;
-                    } else if (response.headers && response.headers.authorization) {
-                        token = response.headers.authorization.replace('Bearer ', '');
-                        user = response.data;
-                    }
+        // Определяем формат ответа
+        if (response.data) {
+            console.log('Тип response.data:', typeof response.data);
+            console.log('Содержимое response.data:', response.data);
 
-                    // Если нет токена, создаем временный
-                    if (!token) {
-                        // Временное решение - генерируем токен на клиенте
-                        token = btoa(`${userData.email}:${new Date().getTime()}`);
-                        if (!user && typeof response.data === 'object') {
-                            user = response.data;
+            // Особый случай: прямая строка JWT
+            if (typeof response.data === 'string' && response.data.startsWith('eyJ')) {
+                token = response.data;
+                user = { email: userData.email }; // Базовый объект пользователя
+                logInfo('Токен получен напрямую как строка');
+            }
+            // Объект с данными
+            else if (typeof response.data === 'object') {
+                // Находим токен в ответе
+                if (response.data.token) {
+                    token = response.data.token;
+                    user = response.data.user || response.data;
+                    logInfo('Токен получен из response.data.token');
+                } else if (response.data.data && response.data.data.token) {
+                    token = response.data.data.token;
+                    user = response.data.data.user || response.data.data;
+                    logInfo('Токен получен из response.data.data.token');
+                } else {
+                    // Возможно, сервер вернул просто JWT токен как строку в поле ответа
+                    const keys = Object.keys(response.data);
+                    for (const key of keys) {
+                        if (typeof response.data[key] === 'string' && response.data[key].startsWith('eyJ')) {
+                            token = response.data[key];
+                            logInfo(`Токен получен из нестандартного поля: ${key}`);
+                            break;
                         }
                     }
                 }
 
-                // Если нашли токен, сохраняем его
-                if (token) {
-                    localStorage.setItem(STORAGE_KEYS.TOKEN, token);
-
-                    // Сохраняем данные пользователя
-                    if (user) {
-                        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+                // Если пользователя нет, но есть данные в ответе, используем их
+                if (!user && response.data) {
+                    if (response.data.userId || response.data.email) {
+                        user = response.data;
+                        logInfo('Данные пользователя получены из корня ответа');
+                    } else if (response.data.user) {
+                        user = response.data.user;
+                        logInfo('Данные пользователя получены из response.data.user');
                     }
-
-                    return {
-                        token,
-                        user,
-                        isAuthenticated: true,
-                    };
                 }
             }
-
-            // Если данных в ответе нет, но статус успешный
-            const tempToken = btoa(`${userData.email}:${new Date().getTime()}`);
-            localStorage.setItem(STORAGE_KEYS.TOKEN, tempToken);
-
-            // Создаем базовый объект пользователя
-            const basicUser = {
-                email: userData.email,
-                // Добавьте другие необходимые поля
-            };
-            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(basicUser));
-
-            return {
-                token: tempToken,
-                user: basicUser,
-                isAuthenticated: true,
-            };
         }
 
-        // Если не сработали предыдущие условия
-        throw new Error('Неверный формат ответа от сервера');
-    } catch (error) {
-        console.error('Ошибка при входе:', error);
+        // Проверяем заголовки на наличие токена, если он не найден в ответе
+        if (!token && response.headers) {
+            console.log('Заголовки ответа:', response.headers);
 
-        // Более детальная обработка ошибок
+            if (response.headers.authorization) {
+                token = response.headers.authorization.replace('Bearer ', '');
+                logInfo('Токен получен из заголовка authorization');
+            } else if (response.headers['x-auth-token']) {
+                token = response.headers['x-auth-token'];
+                logInfo('Токен получен из заголовка x-auth-token');
+            }
+        }
+
+        // Проверяем наличие токена
+        if (!token) {
+            console.error('Не удалось найти JWT токен в ответе сервера', response);
+            throw new Error('Сервер не вернул токен авторизации');
+        }
+
+        // Сохраняем данные пользователя
+        localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+
+        if (user) {
+            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+        }
+
+        return {
+            token,
+            user,
+            isAuthenticated: true,
+        };
+    } catch (error) {
+        logError('Ошибка при входе:', error);
+
+        // Обработка разных типов ошибок
         if (error.response) {
-            // Обрабатываем различные сценарии ошибок от сервера
+            console.error('Подробности ошибки ответа:', error.response);
+
             const status = error.response.status;
+            const data = error.response.data;
 
             if (status === 401 || status === 403) {
                 throw new Error('Неверные учетные данные или код подтверждения');
             } else if (status === 404) {
                 throw new Error('Пользователь не найден');
-            } else if (error.response.data) {
-                if (typeof error.response.data === 'string') {
-                    throw new Error(error.response.data);
-                } else if (error.response.data.message) {
-                    throw new Error(error.response.data.message);
+            } else if (data) {
+                if (typeof data === 'string') {
+                    throw new Error(data);
+                } else if (data.message) {
+                    throw new Error(data.message);
+                } else if (data.error) {
+                    throw new Error(data.error);
                 }
             }
+            throw new Error(`Ошибка при входе: ${status}`);
         }
 
-        throw error.message || 'Ошибка при входе в систему';
+        // Нет ответа от сервера (сетевая ошибка)
+        throw new Error(error.message || 'Ошибка при входе. Проверьте подключение к интернету.');
     }
 };
 
-// Get verification code
+// Получение кода подтверждения
 const getVerificationCode = async (email) => {
     try {
-        console.log('Запрашиваем код подтверждения для:', email);
+        logInfo(`Запрашиваем код подтверждения для: ${email}`);
 
+        // Отправляем запрос на получение кода подтверждения
+        // Используем эндпоинт из контроллера - /auth/code/get
         const response = await api.post(API_ENDPOINTS.AUTH.GET_CODE, null, {
             params: { email },
         });
 
-        console.log('Ответ сервера на запрос кода:', response.data);
+        logInfo(`Код подтверждения отправлен успешно`);
 
         return {
             success: true,
@@ -201,36 +225,96 @@ const getVerificationCode = async (email) => {
             ...response.data
         };
     } catch (error) {
-        console.error('Ошибка при получении кода:', error);
+        logError('Ошибка при получении кода:', error);
 
-        if (error.response && error.response.data) {
-            if (typeof error.response.data === 'string') {
-                throw new Error(error.response.data);
-            } else if (error.response.data.message) {
-                throw new Error(error.response.data.message);
+        // Обработка разных типов ошибок
+        if (error.response) {
+            const data = error.response.data;
+
+            if (typeof data === 'string') {
+                throw new Error(data);
+            } else if (data && data.message) {
+                throw new Error(data.message);
+            } else if (data && data.error) {
+                throw new Error(data.error);
+            } else {
+                throw new Error(`Ошибка при получении кода: ${error.response.status}`);
             }
         }
 
-        throw error.message || 'Ошибка при получении кода подтверждения';
+        // Нет ответа от сервера (сетевая ошибка)
+        throw new Error(error.message || 'Ошибка при получении кода. Проверьте подключение к интернету.');
     }
 };
 
 // Получение данных пользователя
 const getUserProfile = async (userId) => {
     try {
-        console.log('Запрашиваем профиль пользователя:', userId);
+        logInfo(`Запрашиваем профиль пользователя: ${userId}`);
 
         const response = await api.get(API_ENDPOINTS.USERS.GET_BY_ID(userId));
-        console.log('Ответ сервера о профиле:', response.data);
+        logInfo(`Получен профиль пользователя`);
 
         return response.data.data || response.data;
     } catch (error) {
-        console.error('Ошибка при получении профиля:', error);
-        throw error.response?.data?.message || error.message || 'Ошибка при получении данных пользователя';
+        logError('Ошибка при получении профиля:', error);
+
+        if (error.response) {
+            const data = error.response.data;
+
+            if (data && data.message) {
+                throw new Error(data.message);
+            } else {
+                throw new Error(`Ошибка при получении профиля: ${error.response.status}`);
+            }
+        }
+
+        throw new Error(error.message || 'Ошибка при получении данных пользователя');
     }
 };
 
-// Logout
+// Проверка статуса аутентификации
+const checkAuthStatus = async () => {
+    try {
+        // Проверяем наличие токена
+        const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+        if (!token) {
+            return { isAuthenticated: false };
+        }
+
+        // Пытаемся запросить данные пользователя или проверить токен
+        // Здесь можно использовать реальный эндпоинт для проверки токена
+        // или просто проверить, не истек ли токен (если используем JWT)
+        try {
+            // Проверяем токен на валидность
+            const response = await api.get(API_ENDPOINTS.AUTH.CHECK_AUTH || '/auth/check');
+
+            return {
+                isAuthenticated: true,
+                user: response.data.user || JSON.parse(localStorage.getItem(STORAGE_KEYS.USER) || 'null')
+            };
+        } catch (error) {
+            // Если ошибка 401 или 403, значит токен невалидный
+            if (error.response && (error.response.status === 401 || error.response.status === 403)) {
+                logout();
+                return { isAuthenticated: false };
+            }
+
+            // Для других ошибок, считаем токен валидным
+            // (ошибка сети или другая проблема с сервером)
+            const user = JSON.parse(localStorage.getItem(STORAGE_KEYS.USER) || 'null');
+            return { isAuthenticated: !!user, user };
+        }
+    } catch (error) {
+        logError('Ошибка при проверке токена:', error);
+
+        // При любой ошибке проверки токена, считаем пользователя не авторизованным
+        logout();
+        return { isAuthenticated: false };
+    }
+};
+
+// Выход
 const logout = () => {
     localStorage.removeItem(STORAGE_KEYS.TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
@@ -241,6 +325,7 @@ const authService = {
     login,
     getVerificationCode,
     getUserProfile,
+    checkAuthStatus,
     logout
 };
 
