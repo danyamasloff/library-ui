@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Formik, Form, Field } from 'formik';
@@ -14,26 +14,45 @@ import {
     Typography,
     Alert,
     Paper,
+    Snackbar,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import { registerSchema } from '../../utils/validation';
-import { register } from '../../redux/slices/authSlice';
+import { register, clearError, clearMessage } from '../../redux/slices/authSlice';
 import { ROUTES } from '../../utils/constants';
 
 const RegisterForm = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
-    const { loading, error } = useSelector((state) => state.auth);
+    const { loading, error, message, isAuthenticated } = useSelector((state) => state.auth);
 
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [registrationSuccess, setRegistrationSuccess] = useState(false);
+    const [openSnackbar, setOpenSnackbar] = useState(false);
+    const [snackbarMessage, setSnackbarMessage] = useState('');
+
+    useEffect(() => {
+        // Редирект на дашборд, если пользователь уже авторизован
+        if (isAuthenticated) {
+            navigate(ROUTES.DASHBOARD);
+        }
+    }, [isAuthenticated, navigate]);
+
+    useEffect(() => {
+        // Показываем сообщение при появлении message
+        if (message) {
+            setSnackbarMessage(message);
+            setOpenSnackbar(true);
+            dispatch(clearMessage());
+        }
+    }, [message, dispatch]);
 
     const initialValues = {
         firstName: '',
         secondName: '',
         thirdName: '',
-        birthDate: '',  // Теперь это строка, а не объект даты
+        birthDate: '',
         email: '',
         password: '',
         confirmPassword: '',
@@ -42,16 +61,6 @@ const RegisterForm = () => {
     const handleSubmit = async (values) => {
         const userData = { ...values };
         delete userData.confirmPassword;
-
-        // Если нужна конвертация даты из строки в ISO, можно добавить здесь
-        // if (userData.birthDate) {
-        //   try {
-        //     const date = new Date(userData.birthDate);
-        //     userData.birthDate = date.toISOString();
-        //   } catch (e) {
-        //     console.error('Ошибка форматирования даты:', e);
-        //   }
-        // }
 
         const result = await dispatch(register(userData));
         if (!result.error) {
@@ -70,6 +79,10 @@ const RegisterForm = () => {
         setShowConfirmPassword(!showConfirmPassword);
     };
 
+    const handleCloseSnackbar = () => {
+        setOpenSnackbar(false);
+    };
+
     return (
         <Paper elevation={3} sx={{ p: 4, maxWidth: 600, mx: 'auto', borderRadius: 2 }}>
             <Typography variant="h4" component="h1" gutterBottom align="center" fontFamily="Ubuntu" fontWeight={700}>
@@ -80,7 +93,7 @@ const RegisterForm = () => {
             </Typography>
 
             {error && (
-                <Alert severity="error" sx={{ mb: 2 }}>
+                <Alert severity="error" sx={{ mb: 2 }} onClose={() => dispatch(clearError())}>
                     {error}
                 </Alert>
             )}
@@ -96,7 +109,7 @@ const RegisterForm = () => {
                 validationSchema={registerSchema}
                 onSubmit={handleSubmit}
             >
-                {({ values, errors, touched, isValid, handleChange, handleBlur, setFieldValue }) => (
+                {({ values, errors, touched, isValid, handleChange, handleBlur }) => (
                     <Form>
                         <Grid container spacing={2}>
                             <Grid item xs={12} sm={6}>
@@ -148,7 +161,6 @@ const RegisterForm = () => {
                                 />
                             </Grid>
                             <Grid item xs={12} sm={6}>
-                                {/* Заменили DatePicker на обычный TextField с типом date */}
                                 <Field
                                     as={TextField}
                                     fullWidth
@@ -265,6 +277,13 @@ const RegisterForm = () => {
                     </Form>
                 )}
             </Formik>
+
+            <Snackbar
+                open={openSnackbar}
+                autoHideDuration={6000}
+                onClose={handleCloseSnackbar}
+                message={snackbarMessage}
+            />
         </Paper>
     );
 };
