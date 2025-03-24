@@ -5,9 +5,10 @@ import { API_URL, API_ENDPOINTS, STORAGE_KEYS } from '../../utils/constants';
 const api = axios.create({
     baseURL: API_URL,
     headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json, text/plain, */*'
     },
-    timeout: 10000 // увеличиваем таймаут до 10 секунд
+    timeout: 10000
 });
 
 // Add token to requests if it exists
@@ -74,7 +75,7 @@ const login = async (userData) => {
             password: '***скрыто***'
         });
 
-        // Пробуем отправить запрос на вход с Query Parameters
+        // Отправляем запрос с параметрами в query string, а не в теле запроса
         const response = await api.post(API_ENDPOINTS.AUTH.LOGIN, null, {
             params: {
                 email: userData.email,
@@ -83,95 +84,103 @@ const login = async (userData) => {
             },
         });
 
-        console.log('Ответ сервера на вход:', response.data);
+        console.log('Ответ сервера на вход:', response);
 
-        // Если статус 202 (ACCEPTED) - считаем это успехом, даже если нет токена
-        if (response.status === 202 || response.data.statusCodeValue === 202) {
-            console.log('Получен успешный ответ с кодом 202');
+        // Если ответ пустой или содержит сообщение об ошибке
+        if (response.status === 204 || (response.data && typeof response.data === 'string' && response.data.includes('not found'))) {
+            throw new Error('Пользователь не найден или неверные учетные данные');
+        }
 
-            // Генерируем временный токен на основе данных пользователя
-            // Это временное решение, пока на сервере не будет реализована выдача настоящих токенов
+        // Если статус 200 или 202, обрабатываем ответ
+        if (response.status === 200 || response.status === 202) {
+            // Если данные есть в ответе
+            if (response.data) {
+                let token = null;
+                let user = null;
+
+                // Определяем формат ответа
+                if (typeof response.data === 'object') {
+                    // Находим токен в ответе
+                    if (response.data.token) {
+                        token = response.data.token;
+                        user = response.data.user || response.data;
+                    } else if (response.data.data && response.data.data.token) {
+                        token = response.data.data.token;
+                        user = response.data.data.user || response.data.data;
+                    } else if (response.headers && response.headers.authorization) {
+                        token = response.headers.authorization.replace('Bearer ', '');
+                        user = response.data;
+                    }
+
+                    // Если нет токена, создаем временный
+                    if (!token) {
+                        // Временное решение - генерируем токен на клиенте
+                        token = btoa(`${userData.email}:${new Date().getTime()}`);
+                        if (!user && typeof response.data === 'object') {
+                            user = response.data;
+                        }
+                    }
+                }
+
+                // Если нашли токен, сохраняем его
+                if (token) {
+                    localStorage.setItem(STORAGE_KEYS.TOKEN, token);
+
+                    // Сохраняем данные пользователя
+                    if (user) {
+                        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+                    }
+
+                    return {
+                        token,
+                        user,
+                        isAuthenticated: true,
+                    };
+                }
+            }
+
+            // Если данных в ответе нет, но статус успешный
             const tempToken = btoa(`${userData.email}:${new Date().getTime()}`);
             localStorage.setItem(STORAGE_KEYS.TOKEN, tempToken);
 
-            // Извлекаем данные пользователя из тела ответа
-            let user = null;
-            if (response.data.body) {
-                user = response.data.body;
-            } else if (typeof response.data === 'object') {
-                user = response.data;
-            }
-
-            if (user) {
-                localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
-            }
+            // Создаем базовый объект пользователя
+            const basicUser = {
+                email: userData.email,
+                // Добавьте другие необходимые поля
+            };
+            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(basicUser));
 
             return {
                 token: tempToken,
-                user: user,
+                user: basicUser,
                 isAuthenticated: true,
             };
         }
 
-        // Если у нас стандартный ответ с токеном
-        if (response.data && response.status === 200) {
-            // Проверка структуры ответа
-            let userData = response.data;
-            let token = null;
-
-            // Находим токен в ответе
-            if (response.data.data && response.data.data.token) {
-                token = response.data.data.token;
-                userData = response.data.data.user || response.data.data;
-            } else if (response.data.token) {
-                token = response.data.token;
-                userData = response.data.user || response.data;
-            } else if (response.headers && response.headers.authorization) {
-                token = response.headers.authorization.replace('Bearer ', '');
-            }
-
-            // Если нашли токен, сохраняем его
-            if (token) {
-                localStorage.setItem(STORAGE_KEYS.TOKEN, token);
-
-                // Сохраняем данные пользователя
-                if (userData) {
-                    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(userData));
-                }
-
-                return {
-                    token,
-                    user: userData,
-                    isAuthenticated: true,
-                };
-            } else {
-                console.warn('Токен не найден в ответе:', response.data);
-            }
-        }
-
-        throw new Error('Формат ответа не соответствует ожидаемому');
+        // Если не сработали предыдущие условия
+        throw new Error('Неверный формат ответа от сервера');
     } catch (error) {
         console.error('Ошибка при входе:', error);
 
-        // Подробная информация об ошибке
+        // Более детальная обработка ошибок
         if (error.response) {
-            // Ответ получен, но со статусом ошибки
-            if (error.response.status === 403) {
-                throw new Error('Неверный код подтверждения. Запросите новый код.');
-            } else if (error.response.data && typeof error.response.data === 'string') {
-                throw new Error(error.response.data);
-            } else if (error.response.data && error.response.data.message) {
-                throw new Error(error.response.data.message);
-            } else {
-                throw new Error(`Ошибка сервера: ${error.response.status}`);
+            // Обрабатываем различные сценарии ошибок от сервера
+            const status = error.response.status;
+
+            if (status === 401 || status === 403) {
+                throw new Error('Неверные учетные данные или код подтверждения');
+            } else if (status === 404) {
+                throw new Error('Пользователь не найден');
+            } else if (error.response.data) {
+                if (typeof error.response.data === 'string') {
+                    throw new Error(error.response.data);
+                } else if (error.response.data.message) {
+                    throw new Error(error.response.data.message);
+                }
             }
-        } else if (error.request) {
-            // Запрос отправлен, но ответ не получен
-            throw new Error('Сервер не отвечает. Проверьте подключение к интернету.');
-        } else {
-            // Другие ошибки
-            throw error.message || 'Ошибка при входе в систему';
         }
+
+        throw error.message || 'Ошибка при входе в систему';
     }
 };
 
