@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { motion } from 'framer-motion';
 import {
     AppBar,
     Box,
@@ -14,18 +15,38 @@ import {
     Tooltip,
     MenuItem,
     Link,
+    Badge,
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 import { logout } from '../../redux/slices/authSlice';
 import { ROUTES } from '../../utils/constants';
 
 const Header = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
+    const location = useLocation();
     const { isAuthenticated, user } = useSelector((state) => state.auth);
 
     const [anchorElNav, setAnchorElNav] = useState(null);
     const [anchorElUser, setAnchorElUser] = useState(null);
+    const [scrolled, setScrolled] = useState(false);
+
+    // Отслеживаем скролл для анимации шапки
+    useEffect(() => {
+        const handleScroll = () => {
+            const isScrolled = window.scrollY > 20;
+            if (isScrolled !== scrolled) {
+                setScrolled(isScrolled);
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => {
+            window.removeEventListener('scroll', handleScroll);
+        };
+    }, [scrolled]);
 
     const handleOpenNavMenu = (event) => {
         setAnchorElNav(event.currentTarget);
@@ -59,14 +80,32 @@ const Header = () => {
     // Настройки пользовательского меню
     const userSettings = isAuthenticated
         ? [
-            { name: 'Профиль', action: () => navigate('/profile') },
+            { name: 'Личный кабинет', action: () => navigate('/dashboard') },
+            { name: 'Мой профиль', action: () => navigate('/profile') },
             { name: 'Мои книги', action: () => navigate('/my-books') },
             { name: 'Выйти', action: handleLogout },
         ]
         : [];
 
+    // Определяем активный путь для подсветки меню
+    const isActive = (path) => {
+        return location.pathname === path;
+    };
+
     return (
-        <AppBar position="static" sx={{ backgroundColor: 'white', color: 'black', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+        <AppBar
+            position="sticky"
+            sx={{
+                backgroundColor: 'white',
+                color: 'black',
+                boxShadow: scrolled ? '0 2px 10px rgba(0,0,0,0.1)' : '0 2px 4px rgba(0,0,0,0.05)',
+                transition: 'all 0.3s ease-in-out'
+            }}
+            component={motion.header}
+            initial={{ y: -100 }}
+            animate={{ y: 0 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        >
             <Container maxWidth="xl">
                 <Toolbar disableGutters>
                     {/* Логотип для десктопа */}
@@ -124,10 +163,21 @@ const Header = () => {
                                         handleCloseNavMenu();
                                         navigate(link.path);
                                     }}
+                                    selected={isActive(link.path)}
                                 >
                                     <Typography textAlign="center">{link.name}</Typography>
                                 </MenuItem>
                             ))}
+                            {!isAuthenticated && (
+                                <MenuItem
+                                    onClick={() => {
+                                        handleCloseNavMenu();
+                                        navigate(ROUTES.LOGIN);
+                                    }}
+                                >
+                                    <Typography textAlign="center">Войти</Typography>
+                                </MenuItem>
+                            )}
                         </Menu>
                     </Box>
 
@@ -158,7 +208,21 @@ const Header = () => {
                                 component={RouterLink}
                                 to={link.path}
                                 onClick={handleCloseNavMenu}
-                                sx={{ my: 2, color: 'text.primary', display: 'block', mx: 1 }}
+                                sx={{
+                                    my: 2,
+                                    color: isActive(link.path) ? 'primary.main' : 'text.primary',
+                                    display: 'block',
+                                    mx: 1,
+                                    borderBottom: isActive(link.path) ? '2px solid' : 'none',
+                                    borderColor: 'primary.main',
+                                    borderRadius: 0,
+                                    fontWeight: isActive(link.path) ? 600 : 400,
+                                    '&:hover': {
+                                        backgroundColor: 'transparent',
+                                        borderBottom: '2px solid',
+                                        borderColor: 'primary.light',
+                                    },
+                                }}
                             >
                                 {link.name}
                             </Button>
@@ -166,15 +230,36 @@ const Header = () => {
                     </Box>
 
                     {/* Аутентификация и профиль пользователя */}
-                    <Box sx={{ flexGrow: 0 }}>
+                    <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center' }}>
                         {isAuthenticated ? (
                             <>
-                                <Tooltip title="Открыть настройки">
-                                    <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                                        <Avatar sx={{ bgcolor: 'primary.main' }}>
-                                            {user?.firstName?.charAt(0) || 'П'}
-                                        </Avatar>
+                                {/* Кнопка уведомлений */}
+                                <Tooltip title="Уведомления">
+                                    <IconButton sx={{ mr: 2 }} color="inherit">
+                                        <Badge badgeContent={3} color="primary">
+                                            <NotificationsIcon />
+                                        </Badge>
                                     </IconButton>
+                                </Tooltip>
+
+                                {/* Кнопка профиля с анимацией при наведении */}
+                                <Tooltip title="Открыть меню профиля">
+                                    <motion.div
+                                        whileHover={{ scale: 1.1 }}
+                                        whileTap={{ scale: 0.95 }}
+                                    >
+                                        <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                                            <Avatar
+                                                sx={{
+                                                    bgcolor: 'primary.main',
+                                                    border: '2px solid',
+                                                    borderColor: 'primary.light'
+                                                }}
+                                            >
+                                                {user?.firstName?.charAt(0) || 'П'}
+                                            </Avatar>
+                                        </IconButton>
+                                    </motion.div>
                                 </Tooltip>
                                 <Menu
                                     sx={{ mt: '45px' }}
@@ -201,22 +286,32 @@ const Header = () => {
                             </>
                         ) : (
                             <Box sx={{ display: 'flex' }}>
-                                <Button
-                                    component={RouterLink}
-                                    to={ROUTES.LOGIN}
-                                    color="primary"
-                                    sx={{ mx: 1 }}
+                                <motion.div
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                 >
-                                    Войти
-                                </Button>
-                                <Button
-                                    component={RouterLink}
-                                    to={ROUTES.REGISTER}
-                                    variant="contained"
-                                    color="primary"
+                                    <Button
+                                        component={RouterLink}
+                                        to={ROUTES.LOGIN}
+                                        color="primary"
+                                        sx={{ mx: 1 }}
+                                    >
+                                        Войти
+                                    </Button>
+                                </motion.div>
+                                <motion.div
+                                    whileHover={{ scale: 1.05 }}
+                                    whileTap={{ scale: 0.95 }}
                                 >
-                                    Регистрация
-                                </Button>
+                                    <Button
+                                        component={RouterLink}
+                                        to={ROUTES.REGISTER}
+                                        variant="contained"
+                                        color="primary"
+                                    >
+                                        Регистрация
+                                    </Button>
+                                </motion.div>
                             </Box>
                         )}
                     </Box>
