@@ -16,17 +16,25 @@ import {
     MenuItem,
     Link,
     Badge,
+    Divider,
+    useTheme,
+    alpha
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import NotificationsIcon from '@mui/icons-material/Notifications';
-import { logout } from '../../redux/slices/authSlice';
-import { ROUTES } from '../../utils/constants';
+import SearchIcon from '@mui/icons-material/Search';
+import { logout } from '@redux/slices/authSlice';
+import { ROUTES } from '@utils/constants';
+import ThemeToggleButton from '@components/ui/ThemeToggleButton';
+import { useColorMode } from '@components/ui/ThemeProvider';
 
 const Header = () => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
     const location = useLocation();
+    const theme = useTheme();
+    const { mode } = useColorMode();
     const { isAuthenticated, user } = useSelector((state) => state.auth);
 
     const [anchorElNav, setAnchorElNav] = useState(null);
@@ -73,7 +81,7 @@ const Header = () => {
     // Навигационные ссылки
     const navLinks = [
         { name: 'Главная', path: ROUTES.HOME },
-        { name: 'Каталог', path: '/catalog' },
+        { name: 'Каталог', path: ROUTES.CATALOG },
         { name: 'О библиотеке', path: '/about' },
     ];
 
@@ -96,8 +104,8 @@ const Header = () => {
         <AppBar
             position="sticky"
             sx={{
-                backgroundColor: 'white',
-                color: 'black',
+                backgroundColor: theme.palette.background.paper,
+                color: theme.palette.text.primary,
                 boxShadow: scrolled ? '0 2px 10px rgba(0,0,0,0.1)' : '0 2px 4px rgba(0,0,0,0.05)',
                 transition: 'all 0.3s ease-in-out'
             }}
@@ -178,6 +186,13 @@ const Header = () => {
                                     <Typography textAlign="center">Войти</Typography>
                                 </MenuItem>
                             )}
+                            <Divider />
+                            <MenuItem>
+                                <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}>
+                                    <Typography>Сменить тему</Typography>
+                                    <ThemeToggleButton />
+                                </Box>
+                            </MenuItem>
                         </Menu>
                     </Box>
 
@@ -229,13 +244,40 @@ const Header = () => {
                         ))}
                     </Box>
 
+                    {/* Кнопка поиска и переключения темы */}
+                    <Box sx={{ display: 'flex', mr: 2 }}>
+                        <Tooltip title="Поиск книг">
+                            <IconButton
+                                color="inherit"
+                                sx={{
+                                    mr: 1,
+                                    bgcolor: theme.palette.mode === 'light'
+                                        ? 'rgba(0, 0, 0, 0.04)'
+                                        : 'rgba(255, 255, 255, 0.08)',
+                                }}
+                                onClick={() => navigate(ROUTES.CATALOG)}
+                            >
+                                <SearchIcon />
+                            </IconButton>
+                        </Tooltip>
+
+                        {/* Переключатель темы - виден только на десктопе */}
+                        <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                            <ThemeToggleButton />
+                        </Box>
+                    </Box>
+
                     {/* Аутентификация и профиль пользователя */}
                     <Box sx={{ flexGrow: 0, display: 'flex', alignItems: 'center' }}>
                         {isAuthenticated ? (
                             <>
                                 {/* Кнопка уведомлений */}
                                 <Tooltip title="Уведомления">
-                                    <IconButton sx={{ mr: 2 }} color="inherit">
+                                    <IconButton
+                                        sx={{ mr: 2 }}
+                                        color="inherit"
+                                        aria-label="notifications"
+                                    >
                                         <Badge badgeContent={3} color="primary">
                                             <NotificationsIcon />
                                         </Badge>
