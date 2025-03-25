@@ -11,7 +11,7 @@ export const API_ENDPOINTS = {
         REGISTER: '/auth/register',
         GET_CODE: '/auth/code/get',
         CHECK_EMAIL: '/auth/check-email-availability',
-        CHECK_AUTH: '/auth/check-auth', // Эндпоинт для проверки токена
+        CHECK_AUTH: '/auth/check-auth',
     },
     // Пользователи
     USERS: {
@@ -25,11 +25,14 @@ export const API_ENDPOINTS = {
         SEARCH: {
             REQUEST: '/books/search/request',
             NAME: '/books/search/name',
-            GENRE: '/books/search/genre',
+            GENRE: '/books/search/genre', // Убедитесь, что эндпоинт соответствует вашему API
             BOOK_ID: '/books/search/book-identifier',
             AUTHOR_NAME: '/books/search/author-name',
             AUTHOR_ID: '/books/search/author-identifier',
-        }
+        },
+        // Добавлены корректные эндпоинты для жанров и статусов
+        GENRES: '/books/genres',
+        STATUSES: '/books/statuses',
     },
     // Бронирования книг
     BORROWS: {
