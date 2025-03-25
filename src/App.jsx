@@ -5,21 +5,22 @@ import { Container, CircularProgress, Box, Alert, Snackbar } from '@mui/material
 import { AnimatePresence } from 'framer-motion';
 
 // Pages
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
-import Profile from './pages/Profile';
-import Catalog from './pages/Catalog';
-import NotFound from './pages/NotFound';
+import Home from '@pages/Home';
+import Login from '@pages/Login';
+import Register from '@pages/Register';
+import Dashboard from '@pages/Dashboard';
+import Profile from '@pages/Profile';
+import Catalog from '@pages/Catalog';
+import NotFound from '@pages/NotFound';
 
 // Components
-import Header from './components/common/Header';
-import Footer from './components/common/Footer';
+import Header from '@components/common/Header';
+import Footer from '@components/common/Footer';
+import ProtectedRoute from '@components/auth/ProtectedRoute';
 
 // Auth
-import { checkAuth, clearError } from './redux/slices/authSlice';
-import { ROUTES } from './utils/constants';
+import { checkAuth, clearError } from '@redux/slices/authSlice';
+import { ROUTES } from '@utils/constants';
 
 function App() {
     const { isAuthenticated, loading: authLoading, error: authError } = useSelector((state) => state.auth);
@@ -134,18 +135,42 @@ function App() {
 
                 <AnimatePresence mode="wait">
                     <Routes location={location} key={location.pathname}>
+                        {/* Главная доступна всем */}
                         <Route path={ROUTES.HOME} element={<Home />} />
-                        <Route path={ROUTES.LOGIN} element={<Login />} />
-                        <Route path={ROUTES.REGISTER} element={<Register />} />
-                        <Route
-                            path={ROUTES.DASHBOARD}
-                            element={isAuthenticated ? <Dashboard /> : <Login />}
-                        />
-                        <Route
-                            path={ROUTES.PROFILE}
-                            element={isAuthenticated ? <Profile /> : <Login />}
-                        />
-                        <Route path={ROUTES.CATALOG} element={<Catalog />} />
+
+                        {/* Страницы аутентификации доступны только неавторизованным */}
+                        <Route path={ROUTES.LOGIN} element={
+                            <ProtectedRoute requireAuth={false}>
+                                <Login />
+                            </ProtectedRoute>
+                        } />
+
+                        <Route path={ROUTES.REGISTER} element={
+                            <ProtectedRoute requireAuth={false}>
+                                <Register />
+                            </ProtectedRoute>
+                        } />
+
+                        {/* Страницы, требующие авторизации */}
+                        <Route path={ROUTES.DASHBOARD} element={
+                            <ProtectedRoute>
+                                <Dashboard />
+                            </ProtectedRoute>
+                        } />
+
+                        <Route path={ROUTES.PROFILE} element={
+                            <ProtectedRoute>
+                                <Profile />
+                            </ProtectedRoute>
+                        } />
+
+                        {/* Каталог требует авторизации */}
+                        <Route path={ROUTES.CATALOG} element={
+                            <ProtectedRoute>
+                                <Catalog />
+                            </ProtectedRoute>
+                        } />
+
                         <Route path="*" element={<NotFound />} />
                     </Routes>
                 </AnimatePresence>
