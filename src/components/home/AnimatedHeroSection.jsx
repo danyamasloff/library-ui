@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import LocalLibraryIcon from '@mui/icons-material/LocalLibrary';
-import { ROUTES } from '@utils/constants';
+import { ROUTES } from '@utils/constants.js';
 
 const AnimatedHeroSection = ({ isAuthenticated }) => {
     const theme = useTheme();

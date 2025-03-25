@@ -1,3 +1,4 @@
+import React from 'react';
 import { useSelector } from 'react-redux';
 import { Link as RouterLink } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -9,38 +10,34 @@ import {
     Typography,
     Card,
     CardContent,
-    CardMedia,
-    Stack,
+    useTheme,
+    alpha,
+    Divider
 } from '@mui/material';
 import LibraryBooksIcon from '@mui/icons-material/LibraryBooks';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import LocalLibraryIcon from '@mui/icons-material/LocalLibrary';
 import SchoolIcon from '@mui/icons-material/School';
-import { ROUTES } from '../utils/constants';
-import { AnimatedBox, AnimatedCard, pageTransition, staggerContainer, staggerItem } from '../components/ui/AnimatedComponents';
+import { ROUTES } from '@utils/constants';
+import { AnimatedBox, AnimatedCard, pageTransition, staggerContainer, staggerItem } from '@components/ui/AnimatedComponents';
+
+// Импортируем обновленные компоненты
+import AnimatedHeroSection from '@components/home/AnimatedHeroSection';
+import BlurredBookCarousel from '@components/home/BlurredBookCarousel';
+import LibraryStats from '@components/home/LibraryStats';
 
 const Home = () => {
     const { isAuthenticated } = useSelector((state) => state.auth);
+    const theme = useTheme();
 
-    // Определяем анимации для разных секций
-    const heroAnimation = {
-        initial: { opacity: 0, y: 20 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.8 }
-    };
-
-    const textAnimation = {
-        initial: { opacity: 0, y: 10 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.5, delay: 0.2 }
-    };
-
-    const buttonAnimation = {
-        initial: { opacity: 0, scale: 0.8 },
-        animate: { opacity: 1, scale: 1 },
-        transition: { duration: 0.5, delay: 0.4 },
-        whileHover: { scale: 1.05 },
-        whileTap: { scale: 0.95 }
+    // Анимация для секций
+    const sectionVariants = {
+        hidden: { opacity: 0, y: 50 },
+        visible: {
+            opacity: 1,
+            y: 0,
+            transition: { duration: 0.8 }
+        }
     };
 
     const iconAnimation = {
@@ -56,122 +53,16 @@ const Home = () => {
 
     return (
         <AnimatedBox {...pageTransition}>
-            {/* Hero Section */}
-            <motion.div {...heroAnimation}>
-                <Box
-                    sx={{
-                        bgcolor: 'primary.light',
-                        py: 8,
-                        borderRadius: 2,
-                        mb: 6,
-                        color: 'text.primary',
-                    }}
-                >
-                    <Container maxWidth="lg">
-                        <Grid container spacing={4} alignItems="center">
-                            <Grid item xs={12} md={6}>
-                                <motion.div {...textAnimation}>
-                                    <Typography
-                                        variant="h3"
-                                        component="h1"
-                                        gutterBottom
-                                        fontFamily="Ubuntu"
-                                        fontWeight={700}
-                                    >
-                                        Библиотека ИУЦТ ЦТУТП
-                                    </Typography>
-                                </motion.div>
+            {/* Улучшенная секция Hero с анимациями */}
+            <AnimatedHeroSection isAuthenticated={isAuthenticated} />
 
-                                <motion.div
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.5, delay: 0.3 }}
-                                >
-                                    <Typography variant="h6" paragraph>
-                                        Доступ к электронным ресурсам для студентов и преподавателей института управления и цифровых технологий
-                                    </Typography>
-                                </motion.div>
-
-                                <Stack direction="row" spacing={2} mt={4}>
-                                    {isAuthenticated ? (
-                                        <motion.div {...buttonAnimation}>
-                                            <Button
-                                                component={RouterLink}
-                                                to="/catalog"
-                                                variant="contained"
-                                                color="primary"
-                                                size="large"
-                                                startIcon={<MenuBookIcon />}
-                                            >
-                                                Перейти к каталогу
-                                            </Button>
-                                        </motion.div>
-                                    ) : (
-                                        <>
-                                            <motion.div {...buttonAnimation}>
-                                                <Button
-                                                    component={RouterLink}
-                                                    to={ROUTES.LOGIN}
-                                                    variant="contained"
-                                                    color="primary"
-                                                    size="large"
-                                                >
-                                                    Войти
-                                                </Button>
-                                            </motion.div>
-
-                                            <motion.div
-                                                initial={{ opacity: 0, scale: 0.8 }}
-                                                animate={{ opacity: 1, scale: 1 }}
-                                                transition={{ duration: 0.5, delay: 0.5 }}
-                                                whileHover={{ scale: 1.05 }}
-                                                whileTap={{ scale: 0.95 }}
-                                            >
-                                                <Button
-                                                    component={RouterLink}
-                                                    to={ROUTES.REGISTER}
-                                                    variant="outlined"
-                                                    color="primary"
-                                                    size="large"
-                                                >
-                                                    Регистрация
-                                                </Button>
-                                            </motion.div>
-                                        </>
-                                    )}
-                                </Stack>
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                                <Box sx={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center',
-                                    height: '100%'
-                                }}>
-                                    <motion.div
-                                        initial={{ opacity: 0, rotate: -10, scale: 0.8 }}
-                                        animate={{ opacity: 0.6, rotate: 0, scale: 1 }}
-                                        transition={{
-                                            duration: 0.8,
-                                            type: "spring",
-                                            stiffness: 100
-                                        }}
-                                    >
-                                        <LocalLibraryIcon sx={{ fontSize: 240, color: 'primary.main' }} />
-                                    </motion.div>
-                                </Box>
-                            </Grid>
-                        </Grid>
-                    </Container>
-                </Box>
-            </motion.div>
-
-            {/* Features Section */}
-            <Container maxWidth="lg" sx={{ mb: 6 }}>
+            {/* Возможности библиотеки - улучшенная секция */}
+            <Container maxWidth="lg" sx={{ mb: 8 }}>
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
+                    initial="hidden"
+                    whileInView="visible"
+                    viewport={{ once: true, amount: 0.2 }}
+                    variants={sectionVariants}
                 >
                     <Typography
                         variant="h4"
@@ -188,7 +79,8 @@ const Home = () => {
                 <motion.div
                     variants={staggerContainer}
                     initial="initial"
-                    animate="animate"
+                    whileInView="animate"
+                    viewport={{ once: true, amount: 0.1 }}
                 >
                     <Grid container spacing={4}>
                         <Grid item xs={12} sm={6} md={3}>
@@ -198,24 +90,46 @@ const Home = () => {
                                         height: '100%',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        borderRadius: 2
+                                        borderRadius: 2,
+                                        boxShadow: theme.palette.mode === 'light'
+                                            ? '0 5px 15px rgba(0,0,0,0.05)'
+                                            : '0 5px 15px rgba(0,0,0,0.1)',
+                                        overflow: 'hidden'
                                     }}
                                     whileHover={{
-                                        boxShadow: '0px 8px 15px rgba(0, 0, 0, 0.1)',
-                                        y: -10
+                                        boxShadow: '0px 8px 25px rgba(0, 0, 0, 0.15)',
+                                        y: -10,
+                                        transition: { duration: 0.3 }
                                     }}
                                 >
                                     <Box sx={{
-                                        p: 2,
-                                        bgcolor: 'secondary.light',
+                                        p: 3,
+                                        backgroundColor: alpha(theme.palette.secondary.light, 0.3),
                                         display: 'flex',
-                                        justifyContent: 'center'
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        position: 'relative',
+                                        overflow: 'hidden'
                                     }}>
-                                        <motion.div {...iconAnimation}>
+                                        {/* Декоративный фон */}
+                                        <Box
+                                            sx={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                opacity: 0.2,
+                                                background: `linear-gradient(135deg, ${theme.palette.primary.light} 0%, transparent 100%)`,
+                                                zIndex: 0
+                                            }}
+                                        />
+
+                                        <motion.div {...iconAnimation} style={{ position: 'relative', zIndex: 1 }}>
                                             <LibraryBooksIcon sx={{ fontSize: 80, color: 'primary.main' }} />
                                         </motion.div>
                                     </Box>
-                                    <CardContent sx={{ flexGrow: 1 }}>
+                                    <CardContent sx={{ flexGrow: 1, p: 3 }}>
                                         <Typography variant="h6" component="h3" gutterBottom fontWeight={600}>
                                             Электронный каталог
                                         </Typography>
@@ -234,24 +148,46 @@ const Home = () => {
                                         height: '100%',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        borderRadius: 2
+                                        borderRadius: 2,
+                                        boxShadow: theme.palette.mode === 'light'
+                                            ? '0 5px 15px rgba(0,0,0,0.05)'
+                                            : '0 5px 15px rgba(0,0,0,0.1)',
+                                        overflow: 'hidden'
                                     }}
                                     whileHover={{
-                                        boxShadow: '0px 8px 15px rgba(0, 0, 0, 0.1)',
-                                        y: -10
+                                        boxShadow: '0px 8px 25px rgba(0, 0, 0, 0.15)',
+                                        y: -10,
+                                        transition: { duration: 0.3 }
                                     }}
                                 >
                                     <Box sx={{
-                                        p: 2,
-                                        bgcolor: 'secondary.light',
+                                        p: 3,
+                                        backgroundColor: alpha(theme.palette.secondary.light, 0.3),
                                         display: 'flex',
-                                        justifyContent: 'center'
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        position: 'relative',
+                                        overflow: 'hidden'
                                     }}>
-                                        <motion.div {...iconAnimation}>
+                                        {/* Декоративный фон */}
+                                        <Box
+                                            sx={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                opacity: 0.2,
+                                                background: `linear-gradient(135deg, ${theme.palette.secondary.light} 0%, transparent 100%)`,
+                                                zIndex: 0
+                                            }}
+                                        />
+
+                                        <motion.div {...iconAnimation} style={{ position: 'relative', zIndex: 1 }}>
                                             <MenuBookIcon sx={{ fontSize: 80, color: 'primary.main' }} />
                                         </motion.div>
                                     </Box>
-                                    <CardContent sx={{ flexGrow: 1 }}>
+                                    <CardContent sx={{ flexGrow: 1, p: 3 }}>
                                         <Typography variant="h6" component="h3" gutterBottom fontWeight={600}>
                                             Онлайн доступ
                                         </Typography>
@@ -270,24 +206,46 @@ const Home = () => {
                                         height: '100%',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        borderRadius: 2
+                                        borderRadius: 2,
+                                        boxShadow: theme.palette.mode === 'light'
+                                            ? '0 5px 15px rgba(0,0,0,0.05)'
+                                            : '0 5px 15px rgba(0,0,0,0.1)',
+                                        overflow: 'hidden'
                                     }}
                                     whileHover={{
-                                        boxShadow: '0px 8px 15px rgba(0, 0, 0, 0.1)',
-                                        y: -10
+                                        boxShadow: '0px 8px 25px rgba(0, 0, 0, 0.15)',
+                                        y: -10,
+                                        transition: { duration: 0.3 }
                                     }}
                                 >
                                     <Box sx={{
-                                        p: 2,
-                                        bgcolor: 'secondary.light',
+                                        p: 3,
+                                        backgroundColor: alpha(theme.palette.secondary.light, 0.3),
                                         display: 'flex',
-                                        justifyContent: 'center'
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        position: 'relative',
+                                        overflow: 'hidden'
                                     }}>
-                                        <motion.div {...iconAnimation}>
+                                        {/* Декоративный фон */}
+                                        <Box
+                                            sx={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                opacity: 0.2,
+                                                background: `linear-gradient(135deg, ${theme.palette.success.light} 0%, transparent 100%)`,
+                                                zIndex: 0
+                                            }}
+                                        />
+
+                                        <motion.div {...iconAnimation} style={{ position: 'relative', zIndex: 1 }}>
                                             <SchoolIcon sx={{ fontSize: 80, color: 'primary.main' }} />
                                         </motion.div>
                                     </Box>
-                                    <CardContent sx={{ flexGrow: 1 }}>
+                                    <CardContent sx={{ flexGrow: 1, p: 3 }}>
                                         <Typography variant="h6" component="h3" gutterBottom fontWeight={600}>
                                             Учебные материалы
                                         </Typography>
@@ -306,24 +264,46 @@ const Home = () => {
                                         height: '100%',
                                         display: 'flex',
                                         flexDirection: 'column',
-                                        borderRadius: 2
+                                        borderRadius: 2,
+                                        boxShadow: theme.palette.mode === 'light'
+                                            ? '0 5px 15px rgba(0,0,0,0.05)'
+                                            : '0 5px 15px rgba(0,0,0,0.1)',
+                                        overflow: 'hidden'
                                     }}
                                     whileHover={{
-                                        boxShadow: '0px 8px 15px rgba(0, 0, 0, 0.1)',
-                                        y: -10
+                                        boxShadow: '0px 8px 25px rgba(0, 0, 0, 0.15)',
+                                        y: -10,
+                                        transition: { duration: 0.3 }
                                     }}
                                 >
                                     <Box sx={{
-                                        p: 2,
-                                        bgcolor: 'secondary.light',
+                                        p: 3,
+                                        backgroundColor: alpha(theme.palette.secondary.light, 0.3),
                                         display: 'flex',
-                                        justifyContent: 'center'
+                                        justifyContent: 'center',
+                                        alignItems: 'center',
+                                        position: 'relative',
+                                        overflow: 'hidden'
                                     }}>
-                                        <motion.div {...iconAnimation}>
+                                        {/* Декоративный фон */}
+                                        <Box
+                                            sx={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                opacity: 0.2,
+                                                background: `linear-gradient(135deg, ${theme.palette.warning.light} 0%, transparent 100%)`,
+                                                zIndex: 0
+                                            }}
+                                        />
+
+                                        <motion.div {...iconAnimation} style={{ position: 'relative', zIndex: 1 }}>
                                             <LocalLibraryIcon sx={{ fontSize: 80, color: 'primary.main' }} />
                                         </motion.div>
                                     </Box>
-                                    <CardContent sx={{ flexGrow: 1 }}>
+                                    <CardContent sx={{ flexGrow: 1, p: 3 }}>
                                         <Typography variant="h6" component="h3" gutterBottom fontWeight={600}>
                                             Научные работы
                                         </Typography>
@@ -338,30 +318,83 @@ const Home = () => {
                 </motion.div>
             </Container>
 
+            {/* Блок статистики с прыгающими индикаторами */}
+            <Box sx={{ py: 4, mb: 6 }}>
+                <LibraryStats />
+            </Box>
+
+            {/* Улучшенная карусель книг с блюром */}
+            <Container maxWidth="lg" sx={{ mb: 6 }}>
+                <BlurredBookCarousel
+                    title="Новые поступления"
+                    subtitle="Ознакомьтесь с последними добавленными книгами в нашей библиотеке"
+                    isAuthenticated={isAuthenticated}
+                />
+            </Container>
+
             {/* CTA Section */}
             <motion.div
                 initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.2 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
             >
-                <Box sx={{ bgcolor: 'primary.main', color: 'white', py: 6, mb: 6, borderRadius: 2 }}>
-                    <Container maxWidth="md" sx={{ textAlign: 'center' }}>
+                <Box
+                    sx={{
+                        position: 'relative',
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        py: 8,
+                        mb: 6,
+                        borderRadius: 3,
+                        overflow: 'hidden'
+                    }}
+                >
+                    {/* Декоративные элементы */}
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            top: -100,
+                            left: -100,
+                            width: 300,
+                            height: 300,
+                            borderRadius: '50%',
+                            background: alpha(theme.palette.common.white, 0.05),
+                            zIndex: 1
+                        }}
+                    />
+                    <Box
+                        sx={{
+                            position: 'absolute',
+                            bottom: -80,
+                            right: -80,
+                            width: 250,
+                            height: 250,
+                            borderRadius: '50%',
+                            background: alpha(theme.palette.common.white, 0.05),
+                            zIndex: 1
+                        }}
+                    />
+
+                    <Container maxWidth="md" sx={{ textAlign: 'center', position: 'relative', zIndex: 2 }}>
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, amount: 0.2 }}
                             transition={{ duration: 0.5, delay: 0.3 }}
                         >
-                            <Typography variant="h4" component="h2" gutterBottom fontFamily="Ubuntu" fontWeight={600}>
+                            <Typography variant="h3" component="h2" gutterBottom fontFamily="Ubuntu" fontWeight={700}>
                                 Присоединяйтесь к нашей библиотеке сегодня!
                             </Typography>
                         </motion.div>
 
                         <motion.div
                             initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true, amount: 0.2 }}
                             transition={{ duration: 0.5, delay: 0.4 }}
                         >
-                            <Typography variant="h6" paragraph>
+                            <Typography variant="h6" paragraph sx={{ mb: 4, maxWidth: 700, mx: 'auto' }}>
                                 Получите доступ к тысячам книг и материалов для учебы и научной работы
                             </Typography>
                         </motion.div>
@@ -371,7 +404,8 @@ const Home = () => {
                                 whileHover={{ scale: 1.05 }}
                                 whileTap={{ scale: 0.95 }}
                                 initial={{ opacity: 0, y: 20 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                whileInView={{ opacity: 1, y: 0 }}
+                                viewport={{ once: true, amount: 0.2 }}
                                 transition={{ duration: 0.5, delay: 0.5 }}
                             >
                                 <Button
@@ -384,7 +418,14 @@ const Home = () => {
                                         mt: 2,
                                         color: 'text.primary',
                                         fontWeight: 600,
-                                        '&:hover': { bgcolor: 'secondary.dark' }
+                                        py: 1.5,
+                                        px: 5,
+                                        borderRadius: 2,
+                                        boxShadow: '0 5px 15px rgba(0,0,0,0.1)',
+                                        '&:hover': {
+                                            bgcolor: 'secondary.dark',
+                                            boxShadow: '0 8px 20px rgba(0,0,0,0.15)'
+                                        }
                                     }}
                                 >
                                     Зарегистрироваться
@@ -394,80 +435,6 @@ const Home = () => {
                     </Container>
                 </Box>
             </motion.div>
-
-            {/* Recent Additions */}
-            <Container maxWidth="lg" sx={{ mb: 6 }}>
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                >
-                    <Typography
-                        variant="h4"
-                        component="h2"
-                        textAlign="center"
-                        mb={4}
-                        fontFamily="Ubuntu"
-                        fontWeight={600}
-                    >
-                        Недавние поступления
-                    </Typography>
-                </motion.div>
-
-                <motion.div
-                    variants={staggerContainer}
-                    initial="initial"
-                    animate="animate"
-                >
-                    <Grid container spacing={4}>
-                        {[1, 2, 3].map((item) => (
-                            <Grid item xs={12} sm={6} md={4} key={item}>
-                                <motion.div variants={staggerItem}>
-                                    <AnimatedCard
-                                        sx={{
-                                            height: '100%',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            borderRadius: 2
-                                        }}
-                                        whileHover={{
-                                            y: -10,
-                                            boxShadow: '0px 10px 20px rgba(0, 0, 0, 0.1)'
-                                        }}
-                                    >
-                                        <CardMedia
-                                            component="div"
-                                            sx={{
-                                                pt: '80%',
-                                                bgcolor: 'grey.300',
-                                            }}
-                                            image=""
-                                        />
-                                        <CardContent sx={{ flexGrow: 1 }}>
-                                            <Typography variant="h6" component="h3" gutterBottom>
-                                                Книга #{item}
-                                            </Typography>
-                                            <Typography variant="body2" paragraph>
-                                                Краткое описание книги или учебника, автор, год издания и т.д.
-                                            </Typography>
-                                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                                                <Button
-                                                    size="small"
-                                                    color="primary"
-                                                    component={RouterLink}
-                                                    to={isAuthenticated ? `/book/${item}` : ROUTES.LOGIN}
-                                                >
-                                                    Подробнее
-                                                </Button>
-                                            </motion.div>
-                                        </CardContent>
-                                    </AnimatedCard>
-                                </motion.div>
-                            </Grid>
-                        ))}
-                    </Grid>
-                </motion.div>
-            </Container>
         </AnimatedBox>
     );
 };
