@@ -9,8 +9,8 @@ export const AnimatedPaper = motion(Paper);
 
 // Animation variants
 export const staggerContainer = {
-    hidden: { opacity: 0 },
-    show: {
+    initial: { opacity: 0 },
+    animate: {
         opacity: 1,
         transition: {
             staggerChildren: 0.1,
@@ -20,11 +20,11 @@ export const staggerContainer = {
 };
 
 export const staggerItem = {
-    hidden: {
+    initial: {
         opacity: 0,
         y: 20
     },
-    show: {
+    animate: {
         opacity: 1,
         y: 0,
         transition: {
