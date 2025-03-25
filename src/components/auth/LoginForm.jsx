@@ -13,12 +13,12 @@ import {
     Typography,
     Alert,
     Paper,
+    Divider,
 } from '@mui/material';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { loginSchema } from '../../utils/validation';
-import { login, getVerificationCode } from '../../redux/slices/authSlice';
-import { ROUTES } from '../../utils/constants';
-
+import { loginSchema } from '@/utils/validation';
+import { login, getVerificationCode } from '@/redux/slices/authSlice';
+import { ROUTES } from '@/utils/constants';
 
 const LoginForm = () => {
     const dispatch = useDispatch();
@@ -28,24 +28,49 @@ const LoginForm = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [codeRequested, setCodeRequested] = useState(false);
     const [emailForCode, setEmailForCode] = useState('');
+    // Состояние для отслеживания запроса кода
+    const [requestingCode, setRequestingCode] = useState(false);
 
     const initialValues = {
-        email: '',
+        email: verificationEmail || '',
         password: '',
         entryCode: '',
     };
 
-    const handleSubmit = async (values) => {
+    const handleSubmit = async (values, { setSubmitting }) => {
         const result = await dispatch(login(values));
         if (!result.error) {
             navigate(ROUTES.DASHBOARD);
         }
+        setSubmitting(false);
     };
 
-    const handleRequestCode = async (email) => {
+    // ИСПРАВЛЕНО: Обработчик запроса кода без перезагрузки страницы
+    const handleRequestCode = async (email, setFieldValue) => {
+        if (!email || requestingCode) return;
+
+        setRequestingCode(true);
         setEmailForCode(email);
-        await dispatch(getVerificationCode(email));
-        setCodeRequested(true);
+
+        try {
+            const result = await dispatch(getVerificationCode(email));
+            if (!result.error) {
+                setCodeRequested(true);
+
+                // Опционально: устанавливаем фокус на поле кода
+                const codeInput = document.getElementById('entryCode');
+                if (codeInput) {
+                    codeInput.focus();
+                }
+
+                // Сообщение для пользователя
+                console.log('Код успешно отправлен на email:', email);
+            }
+        } catch (error) {
+            console.error('Ошибка при запросе кода:', error);
+        } finally {
+            setRequestingCode(false);
+        }
     };
 
     const handleTogglePassword = () => {
@@ -77,8 +102,9 @@ const LoginForm = () => {
                 initialValues={initialValues}
                 validationSchema={loginSchema}
                 onSubmit={handleSubmit}
+                enableReinitialize={true}
             >
-                {({ values, errors, touched, isValid, handleChange, handleBlur }) => (
+                {({ values, errors, touched, isValid, handleChange, handleBlur, setFieldValue }) => (
                     <Form>
                         <Field
                             as={TextField}
@@ -93,6 +119,7 @@ const LoginForm = () => {
                             helperText={touched.email && errors.email}
                             margin="normal"
                             variant="outlined"
+                            autoComplete="email"
                         />
 
                         <Field
@@ -109,6 +136,7 @@ const LoginForm = () => {
                             helperText={touched.password && errors.password}
                             margin="normal"
                             variant="outlined"
+                            autoComplete="current-password"
                             InputProps={{
                                 endAdornment: (
                                     <InputAdornment position="end">
@@ -138,15 +166,18 @@ const LoginForm = () => {
                                 helperText={touched.entryCode && errors.entryCode}
                                 margin="normal"
                                 variant="outlined"
+                                autoComplete="one-time-code"
                             />
+                            {/* ИСПРАВЛЕНО: Используем тип button вместо submit и предотвращаем сброс формы */}
                             <Button
+                                type="button"
                                 variant="outlined"
                                 color="primary"
-                                onClick={() => handleRequestCode(values.email)}
-                                disabled={!values.email || loading}
+                                onClick={() => handleRequestCode(values.email, setFieldValue)}
+                                disabled={!values.email || loading || requestingCode}
                                 sx={{ ml: 1, height: 56, whiteSpace: 'nowrap', mt: 1 }}
                             >
-                                Получить код
+                                {requestingCode ? <CircularProgress size={24} /> : 'Получить код'}
                             </Button>
                         </Box>
 
@@ -160,6 +191,8 @@ const LoginForm = () => {
                         >
                             {loading ? <CircularProgress size={24} color="inherit" /> : 'Войти'}
                         </Button>
+
+                        <Divider sx={{ my: 2 }} />
 
                         <Box sx={{ mt: 2, textAlign: 'center' }}>
                             <Typography variant="body2">
